@@ -3,7 +3,7 @@
 ## Installation
 
 ```bash
-go install github.com/metadiv-io/zkpf
+go install github.com/metadiv-io/zkpf@latest
 ```
 
 ## Usage
