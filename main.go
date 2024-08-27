@@ -1,70 +1,47 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"log"
-	"os"
-	"strconv"
-	"strings"
+	"os/exec"
+	"runtime"
 
-	"github.com/metadiv-io/zkpf/pkg/zkp"
+	"github.com/gin-gonic/gin"
+	"github.com/metadiv-io/zkpf/handler"
 )
 
 func main() {
+	r := gin.Default()
+	r.GET("/", handler.UI)
+	r.POST("/proof", handler.Proof)
 
-	reader := bufio.NewReader(os.Stdin)
+	go func() {
+		if err := r.Run(":5001"); err != nil {
+			log.Fatal("Failed to start server:", err)
+		}
+	}()
 
-	fmt.Println("")
-	fmt.Println("ZKP Range Proofer")
-	fmt.Println("-----------------")
-	fmt.Print("Please enter the path of the proof result file: ")
+	fmt.Println("Server is running on http://localhost:5001")
+	openBrowser("http://localhost:5001")
 
-	path, err := reader.ReadString('\n')
+	select {}
+}
+
+func openBrowser(url string) {
+	var err error
+
+	switch runtime.GOOS {
+	case "linux":
+		err = exec.Command("xdg-open", url).Start()
+	case "windows":
+		err = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
+	case "darwin":
+		err = exec.Command("open", url).Start()
+	default:
+		err = fmt.Errorf("unsupported platform")
+	}
+
 	if err != nil {
-		log.Fatalln("Error: ", err)
+		log.Printf("Error opening browser: %v", err)
 	}
-
-	path = strings.ReplaceAll(path, "\n", "")
-	s, err := os.ReadFile(path)
-	if err != nil {
-		log.Fatalln("Error: ", err, "("+path+")")
-	}
-
-	result := zkp.ProofResult{}
-	err = result.FromString(string(s))
-	if err != nil || result.Verifier == "" || result.Proof1 == "" || result.Proof2 == "" {
-		log.Fatalln("Error: Invalid proof result object")
-	}
-
-	fmt.Print("Please enter the real data in number: ")
-	realData, err := reader.ReadString('\n')
-	if err != nil {
-		log.Fatalln("Error: ", err)
-	}
-
-	realData = strings.ReplaceAll(realData, "\n", "")
-	if realData == "" {
-		log.Fatalln("Error: Invalid real data")
-	}
-
-	realNumber, err := strconv.Atoi(realData)
-	if err != nil {
-		log.Fatalln("Error: Invalid real data")
-	}
-
-	fmt.Println("-------------")
-	fmt.Println("")
-
-	fmt.Println("Proof Result:")
-	fmt.Println("-------------")
-	fmt.Println("InRange: ", result.InRange)
-	fmt.Println("MinValue: ", result.MinValue)
-	fmt.Println("MaxValue: ", result.MaxValue)
-	fmt.Println("RandNum: ", result.RandNum)
-	fmt.Println("RealData: ", realNumber)
-	fmt.Println("-------------")
-	fmt.Println("Result verification: ", zkp.VerifyProofResultWithSecret(result, realNumber))
-	fmt.Println("-------------")
-	fmt.Println("")
 }
